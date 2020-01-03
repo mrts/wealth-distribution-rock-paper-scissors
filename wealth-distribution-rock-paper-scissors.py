@@ -1,5 +1,5 @@
+import sys
 from time import sleep
-# 64 € jaanile 100 €
 import random
 
 from enum import Enum
@@ -11,9 +11,9 @@ import numpy as np
 
 
 class CONF:
-    initial_wealth = 5 # smaller numbers give more dramatic results
+    initial_wealth = 5  # should be >= 1; smaller numbers give more dramatic results
     debt_treshold = 0  # should be <= 0; or None for unlimited debt
-    revolt_if_gini_too_large = False  # TODO: revolution unimplemented
+    gini_revolution_treshold = 0.7  # should be > 0 and < 1; None for no revolution
 
 
 class CHOICE(Enum):
@@ -36,10 +36,11 @@ class MOOD(Enum):
     neutral = '😐'
     worried = '😟'
     sad = '😞'
-    angry = '😠'  # TODO: revolution unimplemented
+    angry = '😠'
     fearful = '😨'
-    shocked = '🤯'
     exploding = '💥'
+    shocked = '🤯'
+    relieved = '😌'
 
 
 @dataclass
@@ -55,6 +56,9 @@ class Player:
                       else '-' * abs(self.wealth))
         return f'{self.name:7} | {self.mood.value} | {self.wealth:3} | {self.result:31} | {wealth_bar}'
 
+    def __hash__(self):
+        return hash(self.name)
+
 
 PLAYERS = [Player(name, CONF.initial_wealth, MOOD.neutral, None, 'Waiting to start...')
            for name in ('Alice', 'Bob', 'Cecil', 'Dave', 'Emma', 'Fred', 'George',
@@ -64,20 +68,23 @@ PLAYERS = [Player(name, CONF.initial_wealth, MOOD.neutral, None, 'Waiting to sta
 
 def play_game(screen):
     calculate_stats_and_update_screen(screen)
-    screen.wait_for_input(3)
+    screen.wait_for_input(3)  # 3 second delay before start
     while True:
         play_round(PLAYERS)
-        calculate_stats_and_update_screen(screen)
-        if q_key_pressed(screen):
-            return
+        gini = calculate_stats_and_update_screen(screen)
+        if revolution_required(gini):
+            revolt(PLAYERS, screen)
         sleep(1)
 
 
 def calculate_stats_and_update_screen(screen):
+    if q_key_pressed(screen):  # exit when Q pressed
+        sys.exit(0)
     gini = calculate_gini(PLAYERS)
     total = sum(player.wealth for player in PLAYERS)
     abstotal = sum(abs(player.wealth) for player in PLAYERS)
     update_screen(screen, PLAYERS, gini, total, abstotal)
+    return gini
 
 
 def play_round(players):
@@ -112,6 +119,63 @@ def win_lose(a, b):
               or CONF.debt_treshold is not None and b.wealth > CONF.debt_treshold
               else MOOD.sad)
     return f'{a.name[0]} wins {b.name[0]}: {a.choice.name} {a.choice.value} {b.choice.name}'
+
+
+def revolt(players, screen):
+    # 1. before_revolt
+    for player in players:
+        if player.wealth > CONF.initial_wealth:
+            player.mood = MOOD.fearful
+            player.result = 'Tense times, build castles...'
+        elif player.wealth > 0:
+            player.mood = MOOD.worried
+            player.result = 'Change is coming...'
+        else:
+            player.mood = MOOD.angry
+            player.result = 'Give back our share!'
+
+    calculate_stats_and_update_screen(screen)
+    sleep(3)  # let observer see that revolution is coming
+
+    # 2. revolt
+    for player in players:
+        player.mood = MOOD.exploding
+        player.result = '...'
+
+    calculate_stats_and_update_screen(screen)
+    sleep(2)
+
+    # 3. after revolt
+    the_haves = {player for player in players if player.wealth >
+                 CONF.initial_wealth}
+    the_have_nots = {player for player in players if player.wealth <= 0}
+    the_rest = set(players) - the_haves - the_have_nots
+
+    redistributed_wealth = sum(player.wealth for player in the_haves)
+
+    # assume "the haves" keep half of initial wealth
+    for player in the_haves:
+        player.wealth = CONF.initial_wealth // 2
+        player.mood = MOOD.shocked
+        player.result = 'Gosh!'
+
+    redistributed_wealth -= sum(player.wealth for player in the_haves)
+
+    have_nots_count = len(the_have_nots)
+    share = redistributed_wealth // have_nots_count
+    for player in the_have_nots:
+        player.wealth = share
+        player.mood = MOOD.happy
+        player.result = 'Yay!'
+    # someone random gets a little extra if the share should be fractional
+    player.wealth += redistributed_wealth - have_nots_count * share
+
+    for player in the_rest:
+        player.mood = MOOD.relieved
+        player.result = "Whew!"
+
+    calculate_stats_and_update_screen(screen)
+    sleep(3)
 
 
 def update_screen(screen, players, gini, total, abstotal):
@@ -152,6 +216,10 @@ def rebase_to_minimum(xs):
         return xs
     rebased = [abs(m) + x for x in xs]
     return rebased
+
+
+def revolution_required(gini):
+    return CONF.gini_revolution_treshold is not None and gini >= CONF.gini_revolution_treshold
 
 
 if __name__ == '__main__':
