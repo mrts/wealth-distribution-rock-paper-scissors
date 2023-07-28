@@ -20,6 +20,14 @@ Run the application:
 python wealth-distribution-rock-paper-scissors.py
 ```
 
+You can tweak the configuration in `wealth-distribution-rock-paper-scissors.py` before running the application:
+```py
+class CONF:
+    initial_wealth = 5  # should be >= 1; smaller numbers give more dramatic results
+    debt_treshold = 0  # should be <= 0; or None for unlimited debt
+    gini_revolution_treshold = 0.7  # should be > 0 and < 1; None for no revolution
+```
+
 ## References
 
 1. Ugo Bardi. [The Seneca Effect: Why Growth is Slow but Collapse is Rapid](https://www.springer.com/gp/book/9783319572062)
