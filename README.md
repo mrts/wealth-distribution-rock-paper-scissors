@@ -4,6 +4,22 @@ Wealth distribution scenarios based on rock-paper-scissors game.
 
 *TODO: Explain what this is about, how to use it and add screencasts. Explore the implications.*
 
+## Running
+
+Prepare the Python virtual environment:
+
+```sh
+python -m venv venv
+. venv/bin/activate
+pip install -r requirements.txt
+```
+
+Run the application:
+
+```sh
+python wealth-distribution-rock-paper-scissors.py
+```
+
 ## References
 
 1. Ugo Bardi. [The Seneca Effect: Why Growth is Slow but Collapse is Rapid](https://www.springer.com/gp/book/9783319572062)

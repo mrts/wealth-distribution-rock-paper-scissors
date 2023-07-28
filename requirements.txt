@@ -1,0 +1,3 @@
+asciimatics
+numpy
+more-itertools
